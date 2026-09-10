@@ -88,6 +88,7 @@ function getAdminTeam(team, lockedSelections) {
     TeamName: String(team.TeamName || "").trim(),
     LeaderName: String(team.LeaderName || "").trim(),
     LeaderEmail: normalizeEmail(team.LeaderEmail),
+    LeaderMobile: String(team.LeaderMobile || "").trim(),
     LeaderRegisterNumber: normalizeRegisterNumber(team.LeaderRegisterNumber),
     LeaderDepartment: String(team.LeaderDepartment || "").trim(),
     Members: members,
@@ -140,6 +141,7 @@ function adminUpdateTeam(data) {
     teamName: data.teamName,
     leaderName: data.leaderName,
     leaderEmail: data.leaderEmail,
+    leaderMobile: data.leaderMobile,
     leaderRegisterNumber: data.leaderRegisterNumber,
     leaderDepartment: data.leaderDepartment,
     members: data.members || []
@@ -159,11 +161,18 @@ function adminUpdateTeam(data) {
     }
 
     const sheet = getSheet(SHEET_NAMES.TEAMS);
-    const headerMap = getSheetHeaderMap(SHEET_NAMES.TEAMS);
+    let headerMap = getSheetHeaderMap(SHEET_NAMES.TEAMS);
+
+    if (!headerMap.LeaderMobile) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue("LeaderMobile");
+      headerMap = getSheetHeaderMap(SHEET_NAMES.TEAMS);
+    }
+
     const values = {
       TeamName: String(updated.teamName).trim(),
       LeaderName: String(updated.leaderName).trim(),
       LeaderEmail: normalizeEmail(updated.leaderEmail),
+      LeaderMobile: String(updated.leaderMobile).trim(),
       LeaderRegisterNumber: normalizeRegisterNumber(updated.leaderRegisterNumber),
       LeaderDepartment: String(updated.leaderDepartment).trim()
     };

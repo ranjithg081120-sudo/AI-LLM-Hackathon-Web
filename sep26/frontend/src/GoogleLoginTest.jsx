@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGetDomains, apiRegisterTeam } from "./services/appsScriptApi";
+import { clearAuthToken, setAuthToken } from "./services/authSession";
 
 const runtimeTestTeam = {
   teamName: "Runtime Test Team",
   leaderName: "Runtime Test Leader",
+  leaderMobile: "+91 9000000005",
   leaderRegisterNumber: "TEST-001",
   leaderDepartment: "CSE",
   members: []
@@ -20,6 +22,7 @@ function GoogleLoginTest() {
 
   const authenticateWithBackend = useCallback(async (credential) => {
     credentialRef.current = credential;
+    setAuthToken(credential);
     setAuthStatus("authenticating");
     setAuthResult(null);
     setRegistrationStatus("idle");
@@ -35,6 +38,7 @@ function GoogleLoginTest() {
           error: payload.error || "The backend authentication request failed."
         });
         credentialRef.current = null;
+        clearAuthToken();
         return;
       }
 
@@ -54,6 +58,7 @@ function GoogleLoginTest() {
         error: error.message || "Unable to reach the Apps Script backend."
       });
       credentialRef.current = null;
+      clearAuthToken();
     }
   }, []);
 
@@ -102,6 +107,7 @@ function GoogleLoginTest() {
     return () => {
       if (!import.meta.env.DEV) {
         credentialRef.current = null;
+        clearAuthToken();
       }
     };
   }, []);

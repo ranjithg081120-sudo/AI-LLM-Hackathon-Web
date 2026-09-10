@@ -8,11 +8,27 @@ const mockDomains = [
     available: true
   },
   {
+    domainId: "EMP",
+    domainName: "Skills, Employment & Entrepreneurship",
+    maximumTeams: 12,
+    currentLockedTeams: 0,
+    remainingCapacity: 12,
+    available: true
+  },
+  {
     domainId: "EDU",
-    domainName: "Education & Skills",
+    domainName: "Education & Knowledge",
     maximumTeams: 10,
     currentLockedTeams: 2,
     remainingCapacity: 8,
+    available: true
+  },
+  {
+    domainId: "GOV",
+    domainName: "Government & Public Services",
+    maximumTeams: 10,
+    currentLockedTeams: 0,
+    remainingCapacity: 10,
     available: true
   }
 ];
@@ -25,27 +41,19 @@ const mockProblems = {
       Description: "Create a tool that helps small farms plan seasonal crops.",
       WhatToBuild: "Build a crop planning dashboard.",
       DomainID: "AGR"
-    },
-    {
-      PSID: "AGR-02",
-      Title: "Rural Water Planning",
-      Description: "Help communities monitor and plan local water resources.",
-      WhatToBuild: "Build a community water planning tool.",
-      DomainID: "AGR"
     }
   ],
-  EDU: [
-    {
-      PSID: "EDU-01",
-      Title: "Accessible Learning Paths",
-      Description: "Help learners discover practical study paths.",
-      WhatToBuild: "Build a learning path planner.",
-      DomainID: "EDU"
-    }
-  ]
+  EMP: [],
+  EDU: [],
+  GOV: []
 };
 
 let mockSelection = null;
+let mockSelectedDomain = null;
+let mockTeamCounter = 0;
+
+const mockRegisteredLeaderEmails = new Set();
+const mockRegisteredRegNumbers = new Set();
 
 function success(data) {
   return Promise.resolve({
@@ -64,7 +72,7 @@ function failure(code, error) {
 
 function selectionFor(problem) {
   return {
-    teamId: "BIT-AI-DEV-001",
+    teamId: "BIT-AI-001",
     domainId: problem.DomainID,
     psId: problem.PSID,
     selectedAt: "2026-09-10T00:00:00.000Z",
@@ -81,6 +89,37 @@ export function apiGetDomains() {
   return success(mockDomains);
 }
 
+export function apiSelectDomain(_idToken, dataOrDomainId) {
+  const domainId = String(
+    typeof dataOrDomainId === "object" && dataOrDomainId !== null
+      ? dataOrDomainId.domainId || dataOrDomainId.DomainID
+      : dataOrDomainId || ""
+  ).trim().toUpperCase();
+
+  const domain = mockDomains.find((d) => d.domainId === domainId);
+  if (!domain) {
+    return failure("DOMAIN_NOT_FOUND", "The requested domain was not found.");
+  }
+
+  if (domain.remainingCapacity <= 0) {
+    return failure("DOMAIN_CAPACITY_REACHED", "The requested domain has reached its team capacity.");
+  }
+
+  if (mockSelectedDomain) {
+    return failure("DOMAIN_ALREADY_SELECTED", "Domain has already been selected for this team.");
+  }
+
+  mockSelectedDomain = domainId;
+  domain.currentLockedTeams += 1;
+  domain.remainingCapacity = Math.max(0, domain.maximumTeams - domain.currentLockedTeams);
+  domain.available = domain.remainingCapacity > 0;
+
+  return success({
+    teamId: "BIT-AI-001",
+    domainId: domainId
+  });
+}
+
 export function apiGetProblems(_idToken, data) {
   const domainId = String(data && data.domainId || "").trim().toUpperCase();
   const problems = mockProblems[domainId];
@@ -92,9 +131,90 @@ export function apiGetProblems(_idToken, data) {
   return success(problems);
 }
 
-export function apiRegisterTeam() {
+export function apiRegisterTeam(idToken, data) {
+  if (!idToken) {
+    return failure("AUTH_REQUIRED", "Authentication is required before registering a team.");
+  }
+
+  if (!data) {
+    return failure("INVALID_TEAM_DATA", "Registration data is required.");
+  }
+
+  // Validate Team Leader Mobile
+  const mobileInput = String(data.leaderMobile || "").trim();
+  let cleanedMobile = mobileInput.replace(/[\s\-()]/g, "");
+  if (cleanedMobile.startsWith("+91")) cleanedMobile = cleanedMobile.substring(3);
+  else if (cleanedMobile.length === 12 && cleanedMobile.startsWith("91")) cleanedMobile = cleanedMobile.substring(2);
+  else if (cleanedMobile.length === 11 && cleanedMobile.startsWith("0")) cleanedMobile = cleanedMobile.substring(1);
+
+  if (!/^[6-9]\d{9}$/.test(cleanedMobile)) {
+    return failure(
+      "INVALID_MOBILE_NUMBER",
+      "Leader mobile number must be a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
+    );
+  }
+
+  // Members array validation (1 to 3 members -> 2 to 4 total)
+  const members = data.members || [];
+  if (!Array.isArray(members) || members.length < 1 || members.length > 3) {
+    return failure("INVALID_TEAM_DATA", "A team must have between 2 and 4 members total including the leader.");
+  }
+
+  // Duplicate register numbers check inside submission
+  const submittedRegs = [
+    String(data.leaderRegisterNumber || "").trim().toUpperCase(),
+    ...members.map((m) => String(m.registerNumber || "").trim().toUpperCase())
+  ].filter(Boolean);
+
+  if (new Set(submittedRegs).size !== submittedRegs.length) {
+    return failure("DUPLICATE_REGISTER_NUMBER", "The same register number cannot appear more than once in a team.");
+  }
+
+  // Existing duplicates check
+  const leaderEmail = String(data.leaderEmail || "").trim().toLowerCase();
+  if (leaderEmail && mockRegisteredLeaderEmails.has(leaderEmail)) {
+    return failure("TEAM_ALREADY_REGISTERED", "This team leader email is already registered.");
+  }
+
+  for (const reg of submittedRegs) {
+    if (mockRegisteredRegNumbers.has(reg)) {
+      return failure("DUPLICATE_REGISTER_NUMBER", `Register number ${reg} is already registered in another team.`);
+    }
+  }
+
+  // Domain check
+  const domainId = String(data.domainId || "").trim().toUpperCase();
+  if (!domainId) {
+    return failure("DOMAIN_REQUIRED", "Domain selection is required.");
+  }
+
+  const domain = mockDomains.find((d) => d.domainId === domainId);
+  if (!domain) {
+    return failure("DOMAIN_NOT_FOUND", "The requested domain was not found.");
+  }
+
+  if (domain.remainingCapacity <= 0) {
+    return failure("DOMAIN_CAPACITY_REACHED", "The requested domain has reached its team capacity.");
+  }
+
+  // Deduct domain capacity
+  domain.currentLockedTeams += 1;
+  domain.remainingCapacity = Math.max(0, domain.maximumTeams - domain.currentLockedTeams);
+  domain.available = domain.remainingCapacity > 0;
+
+  // Track mock registered data
+  if (leaderEmail) mockRegisteredLeaderEmails.add(leaderEmail);
+  submittedRegs.forEach((r) => mockRegisteredRegNumbers.add(r));
+
+  mockTeamCounter += 1;
+  const teamId = "BIT-AI-" + String(mockTeamCounter).padStart(3, "0");
+
   return success({
-    teamId: "BIT-AI-DEV-001"
+    teamId: teamId,
+    teamName: String(data.teamName || "").trim(),
+    domainId: domainId,
+    domainName: domain.domainName,
+    status: "ACTIVE"
   });
 }
 
@@ -157,7 +277,7 @@ export function apiAdminAddTeam() {
 }
 
 export function apiAdminUpdateTeam() {
-  return success({ teamId: "BIT-AI-DEV-001" });
+  return success({ teamId: "BIT-AI-001" });
 }
 
 export function apiAdminEnableTeam(_idToken, data) {

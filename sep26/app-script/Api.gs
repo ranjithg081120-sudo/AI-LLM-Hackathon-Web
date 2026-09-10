@@ -8,8 +8,18 @@ function apiRegisterTeam(idToken, data) {
 
 function apiGetDomains(idToken) {
   return apiCall_(function() {
-    requireTeamLeader(idToken);
+    if (idToken) {
+      requireTeamLeader(idToken);
+    }
     return getParticipantDomains(idToken);
+  });
+}
+
+
+function apiSelectDomain(idToken, dataOrDomainId) {
+  return apiCall_(function() {
+    requireTeamLeader(idToken);
+    return selectDomain(idToken, dataOrDomainId);
   });
 }
 

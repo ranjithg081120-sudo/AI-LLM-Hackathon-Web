@@ -42,7 +42,14 @@ function callAppsScript(functionName, ...args) {
 }
 
 function callApi(functionName, ...args) {
-  if (useLocalMock) {
+  const hasAppsScriptRunner = Boolean(
+    typeof window !== "undefined" &&
+    window.google &&
+    window.google.script &&
+    window.google.script.run
+  );
+
+  if (useLocalMock && !hasAppsScriptRunner) {
     return localMockApi[functionName](...args);
   }
 
@@ -55,6 +62,10 @@ export function apiRegisterTeam(idToken, data) {
 
 export function apiGetDomains(idToken) {
   return callApi("apiGetDomains", idToken);
+}
+
+export function apiSelectDomain(idToken, domainId) {
+  return callApi("apiSelectDomain", idToken, domainId);
 }
 
 export function apiGetProblems(idToken, data) {

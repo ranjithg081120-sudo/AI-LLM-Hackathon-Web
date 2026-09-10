@@ -31,6 +31,7 @@ function testTeamRegistrationValidation() {
     teamName: "Test Team",
 
     leaderName: "Test Leader",
+    leaderMobile: "+91 9000000001",
     leaderEmail: "test@bitsathy.ac.in",
     leaderRegisterNumber: "BIT001",
     leaderDepartment: "CSE",
@@ -61,6 +62,7 @@ function testDuplicateCheck() {
     teamName: "Test Team",
 
     leaderName: "Test Leader",
+    leaderMobile: "+91 9000000002",
     leaderEmail: "test2@bitsathy.ac.in",
     leaderRegisterNumber: "BIT101",
     leaderDepartment: "CSE",
@@ -91,6 +93,7 @@ function testCreateTeam() {
     teamName: "Test Team",
 
     leaderName: "Test Leader",
+    leaderMobile: "+91 9000000003",
     leaderEmail: "testleader@bitsathy.ac.in",
     leaderRegisterNumber: "BIT201",
     leaderDepartment: "CSE",
@@ -144,6 +147,9 @@ function doPost(e) {
           success: true,
           data: getParticipantDomains(request.idToken)
         });
+
+      case "SELECT_DOMAIN":
+        return createJsonResponse(selectDomain(request.idToken, request.data || request.domainId));
 
       case "GET_PROBLEMS":
         return createJsonResponse({
@@ -258,6 +264,7 @@ function testDoPost() {
       teamName: "API Test Team",
 
       leaderName: "API Test Leader",
+      leaderMobile: "+91 9000000004",
       leaderEmail: "apitest@bitsathy.ac.in",
       leaderRegisterNumber: "BIT301",
       leaderDepartment: "CSE",
